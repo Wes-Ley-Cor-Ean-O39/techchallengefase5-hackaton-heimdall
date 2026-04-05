@@ -1,0 +1,133 @@
+name: 🧠 CI/CD - Heimdail Worker
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    name: 🧪 Build · Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Static sanity checks
+        run: |
+          python -m compileall -q src
+          PYTHONPATH=src python -c "import heimdail.main"
+
+      - name: Run unit tests (coverage >= 80%)
+        run: |
+          PYTHONPATH=src pytest -q \
+            --cov=src/heimdail \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=80
+
+      - name: 🔎 SonarCloud Scan
+        if: ${{ secrets.SONAR_TOKEN != '' && secrets.SONAR_ORGANIZATION != '' }}
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.host.url=https://sonarcloud.io
+
+      - name: Docker build
+        run: docker build -t heimdail-worker:${{ github.sha }} .
+
+  deploy:
+    name: 🚀 Deploy to EKS (main)
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      AWS_REGION: us-east-1
+      EKS_CLUSTER: ${{ secrets.EKS_CLUSTER || 'tc-fase5-hackaton-eks' }}
+      EKS_NAMESPACE: ${{ secrets.EKS_NAMESPACE || 'default' }}
+      ECR_REPOSITORY: ${{ secrets.IMAGE_NAME || 'techchallenge-fase5-uploads' }}
+      REGISTRY: ${{ secrets.ECR_REGISTRY || '339713015255.dkr.ecr.us-east-1.amazonaws.com' }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      SQS_QUEUE_URL: ${{ secrets.SQS_QUEUE_URL || 'https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada' }}
+      REPORT_REQUEST_QUEUE_URL: ${{ secrets.REPORT_REQUEST_QUEUE_URL || 'https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado' }}
+      ANALYSIS_TABLE_NAME: ${{ secrets.ANALYSIS_TABLE_NAME || 'analises-arquitetura' }}
+      RAW_BUCKET_NAME: ${{ secrets.RAW_BUCKET_NAME || 'techchallenge-fase5-raw' }}
+      REPORTS_BUCKET_NAME: ${{ secrets.REPORTS_BUCKET_NAME || 'techchallenge-fase5-reports' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        run: |
+          docker build -t "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" .
+          docker push "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+
+      - name: Configure kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+
+      - name: Deploy worker
+        run: |
+          cp k8s/deployment.yaml /tmp/deployment.yaml
+          sed -i "s|REPLACE_ECR_IMAGE_URI|$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}|g" /tmp/deployment.yaml
+          sed -i "s|REPLACE_SQS_URL|$SQS_QUEUE_URL|g" /tmp/deployment.yaml
+          sed -i "s|REPLACE_REPORT_REQUEST_QUEUE_URL|$REPORT_REQUEST_QUEUE_URL|g" /tmp/deployment.yaml
+          sed -i "s|REPLACE_ANALYSIS_TABLE_NAME|$ANALYSIS_TABLE_NAME|g" /tmp/deployment.yaml
+          sed -i "s|REPLACE_RAW_BUCKET_NAME|$RAW_BUCKET_NAME|g" /tmp/deployment.yaml
+          sed -i "s|REPLACE_REPORTS_BUCKET_NAME|$REPORTS_BUCKET_NAME|g" /tmp/deployment.yaml
+          kubectl create namespace "$EKS_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -n "$EKS_NAMESPACE" -f /tmp/deployment.yaml
+          kubectl rollout status deployment/hackaton-heimdail -n "$EKS_NAMESPACE" --timeout=180s
+
+  open-pr:
+    name: 📬 Abrir PR automático
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Criar PR para main
+        env:
+          GH_TOKEN: ${{ secrets.GH_PR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          branch=${GITHUB_REF_NAME}
+          base=main
+          set +e
+          exists=$(gh pr list --head "$branch" --base "$base" --state open --json number --jq '.[0].number')
+          if [ -n "$exists" ]; then
+            echo "PR já existe: #$exists"
+            exit 0
+          fi
+          gh pr create --head "$branch" --base "$base" \
+            --title "Auto PR: $branch -> $base" \
+            --body "PR aberto automaticamente pelo CI após push em $branch." || true

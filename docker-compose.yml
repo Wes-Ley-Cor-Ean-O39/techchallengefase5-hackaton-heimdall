@@ -1,0 +1,35 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: tc5-heimdail-localstack
+    environment:
+      - SERVICES=s3,sqs,dynamodb
+      - DEBUG=1
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./localstack/init:/etc/localstack/init/ready.d
+      - ./local/sample-diagrama-arquitetura.png:/init/sample-diagrama-arquitetura.png
+
+  heimdail:
+    build:
+      context: .
+    container_name: tc5-heimdail
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ENDPOINT_URL=http://localstack:4566
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/analise-solicitada
+      - REPORT_REQUEST_QUEUE_URL=http://localstack:4566/000000000000/relatorio-solicitado
+      - ANALYSIS_TABLE_NAME=analises-arquitetura
+      - RAW_BUCKET_NAME=techchallenge-fase5-raw
+      - REPORTS_BUCKET_NAME=techchallenge-fase5-reports
+      - BEDROCK_USE_FAKE=true
+      - MAX_OUTPUT_TOKENS=500
+      - MAX_INPUT_BYTES=5242880
+      - MAX_PDF_PAGES=8
+      - POLL_WAIT_SECONDS=3
+      - MAX_MESSAGES=1
+    depends_on:
+      - localstack

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hackaton-heimdail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hackaton-heimdail
+  template:
+    metadata:
+      labels:
+        app: hackaton-heimdail
+    spec:
+      containers:
+        - name: worker
+          image: REPLACE_ECR_IMAGE_URI
+          imagePullPolicy: Always
+          env:
+            - name: AWS_REGION
+              value: us-east-1
+            - name: SQS_QUEUE_URL
+              value: REPLACE_SQS_URL
+            - name: REPORT_REQUEST_QUEUE_URL
+              value: REPLACE_REPORT_REQUEST_QUEUE_URL
+            - name: ANALYSIS_TABLE_NAME
+              value: REPLACE_ANALYSIS_TABLE_NAME
+            - name: RAW_BUCKET_NAME
+              value: REPLACE_RAW_BUCKET_NAME
+            - name: REPORTS_BUCKET_NAME
+              value: REPLACE_REPORTS_BUCKET_NAME
+            - name: BEDROCK_MODEL_ID
+              value: anthropic.claude-3-haiku-20240307-v1:0
+            - name: BEDROCK_USE_FAKE
+              value: "false"
+            - name: MAX_OUTPUT_TOKENS
+              value: "700"
+            - name: MAX_INPUT_BYTES
+              value: "5242880"
+            - name: MAX_PDF_PAGES
+              value: "8"
+            - name: POLL_WAIT_SECONDS
+              value: "20"
+            - name: MAX_MESSAGES
+              value: "5"
