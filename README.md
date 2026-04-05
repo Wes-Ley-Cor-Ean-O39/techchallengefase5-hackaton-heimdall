@@ -152,6 +152,29 @@ Defaults de deploy (quando secrets nao informados):
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket relatorios: `techchallenge-fase5-reports`
 
+### Deploy manual (padrao fase 4)
+```bash
+aws eks update-kubeconfig --name tc-fase5-hackaton-eks --region us-east-1
+
+IMAGE_URI=339713015255.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads:<TAG>
+SQS_IN=https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada
+SQS_OUT=https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado
+TABLE=analises-arquitetura
+RAW_BUCKET=techchallenge-fase5-raw
+REPORTS_BUCKET=techchallenge-fase5-reports
+
+cp k8s/deployment.yaml /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_ECR_IMAGE_URI|$IMAGE_URI|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_SQS_URL|$SQS_IN|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_REPORT_REQUEST_QUEUE_URL|$SQS_OUT|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_ANALYSIS_TABLE_NAME|$TABLE|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_RAW_BUCKET_NAME|$RAW_BUCKET|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_REPORTS_BUCKET_NAME|$REPORTS_BUCKET|g" /tmp/heimdall-deployment.yaml
+
+kubectl apply -n default -f /tmp/heimdall-deployment.yaml
+kubectl rollout status deployment/hackaton-heimdail -n default --timeout=180s
+```
+
 ## 🤖 CI/CD
 Workflow: `.github/workflows/ci.yml`
 
@@ -176,6 +199,63 @@ Workflow: `.github/workflows/ci.yml`
 - `GH_PR_TOKEN` (opcional)
 - `SONAR_TOKEN` (opcional)
 - `SONAR_ORGANIZATION` (opcional)
+
+## 🔎 Operacao (EKS)
+- Ver deployment: `kubectl get deploy -n default hackaton-heimdail`
+- Ver pods: `kubectl get pods -n default -l app=hackaton-heimdail -o wide`
+- Rollout status: `kubectl rollout status deployment/hackaton-heimdail -n default --timeout=180s`
+- Reiniciar worker: `kubectl rollout restart deployment/hackaton-heimdail -n default`
+- Eventos recentes: `kubectl get events -n default --sort-by=.lastTimestamp | tail -n 30`
+
+### Logs e diagnostico
+- Logs ultimo pod: `kubectl logs -n default deploy/hackaton-heimdail --tail=200`
+- Follow logs: `kubectl logs -f -n default deploy/hackaton-heimdail`
+- Describe do pod (falha de agendamento/imagem/env):  
+  `kubectl describe pod -n default $(kubectl get pod -n default -l app=hackaton-heimdail -o jsonpath='{.items[0].metadata.name}')`
+
+### Validacao fim a fim no cluster
+Pre-reqs minimos:
+- fila de entrada `analise-solicitada`
+- fila de saida `relatorio-solicitado`
+- tabela DynamoDB `analises-arquitetura`
+- bucket `techchallenge-fase5-raw`
+
+1) Enviar mensagem de teste para a fila de entrada:
+```bash
+aws sqs send-message \
+  --region us-east-1 \
+  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada \
+  --message-body '{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-east-1","eventTime":"2026-04-05T00:00:00.000Z","eventName":"ObjectCreated:Put","s3":{"bucket":{"name":"techchallenge-fase5-raw"},"object":{"key":"uploads/demo-arq-001-diagrama-arquitetura.png"}}}]}'
+```
+
+2) Acompanhar processamento:
+```bash
+kubectl logs -f -n default deploy/hackaton-heimdail
+```
+
+3) Validar escrita no DynamoDB:
+```bash
+aws dynamodb get-item \
+  --region us-east-1 \
+  --table-name analises-arquitetura \
+  --key '{"uploadId":{"S":"demo-arq-001-diagrama-arquitetura"}}'
+```
+
+4) Validar evento de saida:
+```bash
+aws sqs receive-message \
+  --region us-east-1 \
+  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado \
+  --max-number-of-messages 1
+```
+
+## ✅ Checklist de pronto
+- [ ] imagem publicada no ECR `techchallenge-fase5-uploads`
+- [ ] deployment `hackaton-heimdail` em `Running`
+- [ ] filas SQS criadas (`analise-solicitada`, `relatorio-solicitado`)
+- [ ] tabela `analises-arquitetura` existente
+- [ ] bucket `techchallenge-fase5-raw` existente
+- [ ] logs sem erro de credencial/permissao AWS
 
 ## 🔗 Repositórios relacionados
 - `techchallengefase5-hackaton-gatekeeper`: entrada/presign e registro inicial do upload.
