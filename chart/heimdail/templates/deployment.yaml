@@ -21,6 +21,23 @@ spec:
           env:
             - name: AWS_REGION
               value: {{ .Values.env.AWS_REGION | quote }}
+            {{- if .Values.awsCredentials.enabled }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.awsCredentials.secretName | quote }}
+                  key: {{ .Values.awsCredentials.accessKeyIdKey | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.awsCredentials.secretName | quote }}
+                  key: {{ .Values.awsCredentials.secretAccessKeyKey | quote }}
+            - name: AWS_SESSION_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.awsCredentials.secretName | quote }}
+                  key: {{ .Values.awsCredentials.sessionTokenKey | quote }}
+            {{- end }}
             - name: SQS_QUEUE_URL
               value: {{ .Values.env.SQS_QUEUE_URL | quote }}
             - name: REPORT_REQUEST_QUEUE_URL

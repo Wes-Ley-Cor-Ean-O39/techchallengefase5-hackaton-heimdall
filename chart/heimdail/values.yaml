@@ -13,6 +13,13 @@ openai:
   secretKey: api-key
   model: gpt-4.1-mini
 
+awsCredentials:
+  enabled: true
+  secretName: heimdail-aws
+  accessKeyIdKey: access-key-id
+  secretAccessKeyKey: secret-access-key
+  sessionTokenKey: session-token
+
 env:
   AWS_REGION: us-east-1
   SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis

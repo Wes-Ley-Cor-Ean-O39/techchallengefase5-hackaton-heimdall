@@ -117,6 +117,12 @@ jobs:
             --from-literal=api-key="$OPENAI_API_KEY" \
             -n "$EKS_NAMESPACE" \
             --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic heimdail-aws \
+            --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
+            --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+            --from-literal=session-token="$AWS_SESSION_TOKEN" \
+            -n "$EKS_NAMESPACE" \
+            --dry-run=client -o yaml | kubectl apply -f -
           helm upgrade --install "$HELM_RELEASE" "$HELM_CHART" \
             -n "$EKS_NAMESPACE" \
             -f "$HELM_VALUES" \

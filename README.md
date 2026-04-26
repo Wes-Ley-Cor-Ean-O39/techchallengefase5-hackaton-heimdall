@@ -154,8 +154,9 @@ As configuracoes nao secretas de ambiente ficam em `chart/heimdail/values.yaml`:
 - modelo OpenAI
 - limites de inferencia
 
-O `OPENAI_API_KEY` nao e substituido no manifesto. O deploy cria/atualiza o Secret Kubernetes
-`heimdail-openai` e o pod le a chave via `secretKeyRef`.
+Secrets sensiveis nao ficam no values. O deploy cria/atualiza:
+- `heimdail-openai`: `OPENAI_API_KEY`
+- `heimdail-aws`: credenciais temporarias AWS Academy usadas pelo boto3 no pod
 
 Defaults de deploy (quando secrets nao informados):
 - Cluster EKS: `tc-fase5-hackaton-eks`
@@ -174,6 +175,13 @@ OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 
 kubectl create secret generic heimdail-openai \
   --from-literal=api-key="$OPENAI_API_KEY" \
+  -n default \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic heimdail-aws \
+  --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
+  --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+  --from-literal=session-token="$AWS_SESSION_TOKEN" \
   -n default \
   --dry-run=client -o yaml | kubectl apply -f -
 
@@ -201,6 +209,19 @@ Workflow: `.github/workflows/ci.yml`
 - `GH_PR_TOKEN` (opcional)
 - `SONAR_TOKEN` (opcional)
 - `SONAR_ORGANIZATION` (opcional)
+
+### Credenciais AWS no pod
+Em conta AWS Academy, este worker usa o Secret Kubernetes `heimdail-aws` para expor credenciais temporarias ao boto3. Se aparecer `Unable to locate credentials` nos logs, atualize o Secret e reinicie o deployment:
+```bash
+kubectl create secret generic heimdail-aws \
+  --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
+  --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+  --from-literal=session-token="$AWS_SESSION_TOKEN" \
+  -n default \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl rollout restart deployment/hackaton-heimdail -n default
+```
 
 ## 🔎 Operacao (EKS)
 - Ver deployment: `kubectl get deploy -n default hackaton-heimdail`

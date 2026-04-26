@@ -48,6 +48,7 @@ docker exec tc5-heimdail-localstack awslocal sqs receive-message --queue-url htt
 - Workflow: `.github/workflows/ci.yml`
 - Jobs: build, deploy (main), open-pr
 - Deploy: build/push ECR + `helm upgrade --install` via `chart/heimdail/values.yaml`
+- Secrets Kubernetes no deploy: `heimdail-openai` e `heimdail-aws`.
 - Gates de qualidade: testes unitários com cobertura mínima de `80%` + SonarCloud (condicional por token).
 
 ## Repositórios relacionados
