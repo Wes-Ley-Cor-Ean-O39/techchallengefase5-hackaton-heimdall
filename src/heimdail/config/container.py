@@ -1,10 +1,10 @@
 import boto3
+from openai import OpenAI
 
 from heimdail.adapters.out.aws_queue import SqsQueueAdapter
 from heimdail.adapters.out.dynamodb_analysis_repository import DynamoDbAnalysisRepository
 from heimdail.adapters.out.aws_storage import S3StorageAdapter
-from heimdail.adapters.out.bedrock_ai import BedrockAiAdapter
-from heimdail.adapters.out.fake_ai import FakeAiAdapter
+from heimdail.adapters.out.openai_ai import OpenAiAdapter
 from heimdail.adapters.out.sqs_publisher import SqsPublisherAdapter
 from heimdail.application.services.worker_service import WorkerService
 from heimdail.application.use_cases.process_message import DefaultMessageParser, ProcessMessageUseCase
@@ -28,17 +28,14 @@ def build_worker() -> WorkerService:
         sqs_client=sqs_client,
         queue_url=settings.report_request_queue_url,
     )
-    if settings.bedrock_use_fake:
-        ai_adapter = FakeAiAdapter()
-    else:
-        bedrock_client = boto3.client("bedrock-runtime", region_name=settings.aws_region)
-        ai_adapter = BedrockAiAdapter(
-            bedrock_client=bedrock_client,
-            model_id=settings.bedrock_model_id,
-            max_output_tokens=settings.max_output_tokens,
-            max_input_bytes=settings.max_input_bytes,
-            max_pdf_pages=settings.max_pdf_pages,
-        )
+    openai_client = OpenAI(api_key=settings.openai_api_key)
+    ai_adapter = OpenAiAdapter(
+        openai_client=openai_client,
+        model=settings.openai_model,
+        max_output_tokens=settings.max_output_tokens,
+        max_input_bytes=settings.max_input_bytes,
+        max_pdf_pages=settings.max_pdf_pages,
+    )
     parser = DefaultMessageParser(default_raw_bucket=settings.raw_bucket_name)
 
     use_case = ProcessMessageUseCase(

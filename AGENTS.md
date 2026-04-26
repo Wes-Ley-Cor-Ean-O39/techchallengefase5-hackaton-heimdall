@@ -9,7 +9,7 @@
 ## Objetivo funcional
 - Consumir mensagens da fila `analise-solicitada`.
 - Ler arquivo do bucket bruto.
-- Analisar diagrama via Bedrock (ou fake local).
+- Analisar diagrama via OpenAI API.
 - Persistir resultado no DynamoDB.
 - Publicar evento `ANALYSIS_COMPLETED` em `relatorio-solicitado`.
 
@@ -24,12 +24,14 @@
 - `MAX_OUTPUT_TOKENS`
 - `MAX_INPUT_BYTES`
 - `MAX_PDF_PAGES`
+- `OPENAI_API_KEY` deve ficar em Secret Kubernetes (`heimdail-openai`), nao inline no Deployment.
 
 ## Comandos úteis
 ```bash
 cd /Users/wesleyazevedo/fiap/techchallengefase5-hackaton-heimdall
 
 # subir stack local
+export OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 docker compose up -d --build
 
 # logs worker

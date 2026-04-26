@@ -3,7 +3,6 @@ import pytest
 from heimdail.adapters.out.aws_queue import SqsQueueAdapter
 from heimdail.adapters.out.aws_storage import S3StorageAdapter
 from heimdail.adapters.out.dynamodb_analysis_repository import DynamoDbAnalysisRepository
-from heimdail.adapters.out.fake_ai import FakeAiAdapter
 from heimdail.adapters.out.sqs_publisher import SqsPublisherAdapter
 from heimdail.domain.entities import AnalysisResult
 
@@ -46,6 +45,10 @@ def test_aws_storage_supported_and_unsupported():
     assert content == b"abc"
     assert media == "image/png"
 
+    content, media = storage.read_document("b", "uploads/a.pdf")
+    assert content == b"abc"
+    assert media == "application/pdf"
+
     with pytest.raises(ValueError):
         storage.read_document("b", "uploads/a.txt")
 
@@ -69,15 +72,10 @@ def test_queue_and_publisher_and_repo():
             source_key="k",
             media_type="image/png",
             analysis="x",
-            strategy_used="fake",
+            strategy_used="openai",
             fallback_reason="",
             confidence=0.8,
             created_at="now",
         )
     )
     assert table.item["uploadId"] == "u1"
-
-
-def test_fake_ai_returns_payload():
-    payload = FakeAiAdapter().analyze_image(b"1234", "image/png")
-    assert payload["strategy_used"] == "multimodal_fake"

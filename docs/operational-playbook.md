@@ -6,7 +6,7 @@ Worker assincrono para analise de diagramas com consumo de SQS, leitura S3 e per
 ## Fluxo esperado
 1. consumir evento de `analise-solicitada`
 2. buscar arquivo no bucket bruto
-3. executar analise (Bedrock/fake)
+3. executar analise (OpenAI API)
 4. persistir resultado
 5. publicar `ANALYSIS_COMPLETED` em `relatorio-solicitado`
 
@@ -23,3 +23,5 @@ docker compose logs -f heimdail
 ## Guardrails
 - Nao gerar relatorio final aqui; publicar evento para downstream.
 - Limites de inferencia devem permanecer explicitos e configuraveis.
+- Manter `OPENAI_API_KEY` em Secret Kubernetes (`heimdail-openai`) no EKS.
+- PDFs devem ser enviados para OpenAI como arquivo (`input_file`) para preservar texto e imagens das paginas.

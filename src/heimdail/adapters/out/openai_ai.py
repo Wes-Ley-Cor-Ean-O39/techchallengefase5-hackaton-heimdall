@@ -1,20 +1,21 @@
+import base64
 from io import BytesIO
 from typing import Any
 
 from pypdf import PdfReader
 
 
-class BedrockAiAdapter:
+class OpenAiAdapter:
     def __init__(
         self,
-        bedrock_client: Any,
-        model_id: str,
+        openai_client: Any,
+        model: str,
         max_output_tokens: int,
         max_input_bytes: int,
         max_pdf_pages: int,
     ) -> None:
-        self._bedrock_client = bedrock_client
-        self._model_id = model_id
+        self._openai_client = openai_client
+        self._model = model
         self._max_output_tokens = max_output_tokens
         self._max_input_bytes = max_input_bytes
         self._max_pdf_pages = max_pdf_pages
@@ -30,58 +31,41 @@ class BedrockAiAdapter:
             "Seja objetivo, estruturado e conciso."
         )
 
-        content_blocks = [{"text": prompt}]
+        input_content = [{"type": "input_text", "text": prompt}]
         if media_type.startswith("image/"):
-            content_blocks.append(
+            b64 = base64.b64encode(content).decode("utf-8")
+            input_content.append(
                 {
-                    "image": {
-                        "format": media_type.split("/", 1)[1],
-                        "source": {"bytes": content},
-                    }
+                    "type": "input_image",
+                    "image_url": f"data:{media_type};base64,{b64}",
                 }
             )
         elif media_type == "application/pdf":
-            content_blocks.append(
+            b64 = base64.b64encode(content).decode("utf-8")
+            input_content.append(
                 {
-                    "document": {
-                        "format": "pdf",
-                        "name": "diagrama-arquitetura",
-                        "source": {"bytes": content},
-                    }
+                    "type": "input_file",
+                    "filename": "diagrama-arquitetura.pdf",
+                    "file_data": f"data:application/pdf;base64,{b64}",
                 }
             )
         else:
             raise ValueError(f"Media type nao suportado para analise: {media_type}")
 
-        response = self._bedrock_client.converse(
-            modelId=self._model_id,
-            messages=[
-                {
-                    "role": "user",
-                    "content": content_blocks,
-                }
-            ],
-            inferenceConfig={
-                "maxTokens": self._max_output_tokens,
-                "temperature": 0.2,
-                "topP": 0.9,
-            },
+        response = self._openai_client.responses.create(
+            model=self._model,
+            input=[{"role": "user", "content": input_content}],
+            max_output_tokens=self._max_output_tokens,
         )
 
-        content_items = response.get("output", {}).get("message", {}).get("content", [])
-        output_text = ""
-        for item in content_items:
-            text = item.get("text")
-            if text:
-                output_text = text.strip()
-                break
+        output_text = self._extract_output_text(response)
         if not output_text:
-            raise ValueError("Resposta do Bedrock sem texto de saida")
+            raise ValueError("Resposta da OpenAI sem texto de saida")
 
         return {
             "analysis": output_text,
             "confidence": 0.75,
-            "strategy_used": "multimodal_bedrock",
+            "strategy_used": "multimodal_openai",
             "fallback_reason": "",
         }
 
@@ -105,3 +89,17 @@ class BedrockAiAdapter:
             return len(PdfReader(BytesIO(content)).pages)
         except Exception as exc:
             raise ValueError(f"Falha ao ler paginas do PDF: {exc}") from exc
+
+    @staticmethod
+    def _extract_output_text(response: Any) -> str:
+        output_text = getattr(response, "output_text", "")
+        if output_text:
+            return output_text.strip()
+
+        response_dict = response.model_dump() if hasattr(response, "model_dump") else {}
+        for item in response_dict.get("output", []):
+            for content in item.get("content", []):
+                text = content.get("text", "").strip()
+                if text:
+                    return text
+        return ""

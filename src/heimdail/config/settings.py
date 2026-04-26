@@ -10,8 +10,8 @@ class Settings:
     report_request_queue_url: str
     analysis_table_name: str
     raw_bucket_name: str
-    bedrock_model_id: str
-    bedrock_use_fake: bool
+    openai_model: str
+    openai_api_key: str
     max_output_tokens: int
     max_input_bytes: int
     max_pdf_pages: int
@@ -27,8 +27,8 @@ class Settings:
             report_request_queue_url=os.getenv("REPORT_REQUEST_QUEUE_URL", ""),
             analysis_table_name=os.getenv("ANALYSIS_TABLE_NAME", ""),
             raw_bucket_name=os.getenv("RAW_BUCKET_NAME", ""),
-            bedrock_model_id=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
-            bedrock_use_fake=os.getenv("BEDROCK_USE_FAKE", "false").lower() == "true",
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             max_output_tokens=int(os.getenv("MAX_OUTPUT_TOKENS", "700")),
             max_input_bytes=int(os.getenv("MAX_INPUT_BYTES", "5242880")),
             max_pdf_pages=int(os.getenv("MAX_PDF_PAGES", "8")),
@@ -43,6 +43,7 @@ class Settings:
             "SQS_QUEUE_URL": self.sqs_queue_url,
             "REPORT_REQUEST_QUEUE_URL": self.report_request_queue_url,
             "ANALYSIS_TABLE_NAME": self.analysis_table_name,
+            "OPENAI_API_KEY": self.openai_api_key,
         }
 
         missing = [name for name, value in required.items() if not value]

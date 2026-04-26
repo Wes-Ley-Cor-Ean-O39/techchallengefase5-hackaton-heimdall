@@ -55,6 +55,6 @@ aws sqs receive-message \
 
 ## 5) Erros comuns
 - `QueueDoesNotExist`: criar filas `analise-solicitada` e `relatorio-solicitado`.
-- `AccessDenied`: revisar IAM role associada aos nodes/pod para SQS/S3/DynamoDB/Bedrock.
+- `AccessDenied`: revisar IAM role associada aos nodes/pod para SQS/S3/DynamoDB.
 - `NoSuchBucket`: criar bucket `techchallenge-fase5-raw`.
 - `ResourceNotFoundException` (DynamoDB): criar tabela `analises-arquitetura`.

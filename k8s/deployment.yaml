@@ -29,10 +29,13 @@ spec:
               value: REPLACE_RAW_BUCKET_NAME
             - name: REPORTS_BUCKET_NAME
               value: REPLACE_REPORTS_BUCKET_NAME
-            - name: BEDROCK_MODEL_ID
-              value: anthropic.claude-3-haiku-20240307-v1:0
-            - name: BEDROCK_USE_FAKE
-              value: "false"
+            - name: OPENAI_MODEL
+              value: REPLACE_OPENAI_MODEL
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: heimdail-openai
+                  key: api-key
             - name: MAX_OUTPUT_TOKENS
               value: "700"
             - name: MAX_INPUT_BYTES

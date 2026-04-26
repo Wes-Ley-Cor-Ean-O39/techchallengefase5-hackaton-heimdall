@@ -11,9 +11,11 @@ Consome eventos, lê o documento no S3, executa análise com IA, persiste result
 ## 🎯 Objetivo do repositório
 - Consumir eventos da fila de entrada (`analise-solicitada`).
 - Ler imagem/PDF no bucket bruto.
-- Analisar com Bedrock (ou modo fake local).
+- Analisar com OpenAI API.
 - Persistir análise no DynamoDB.
 - Publicar `ANALYSIS_COMPLETED` em fila de saída.
+
+PDFs sao enviados para a OpenAI como `input_file` em base64, preservando texto e imagens das paginas para analise multimodal do diagrama.
 
 ## ✅ O que este serviço entrega
 - Persistência do resultado bruto da análise.
@@ -37,7 +39,7 @@ src/
       out/
         aws_queue.py
         aws_storage.py
-        bedrock_ai.py
+        openai_ai.py
         dynamodb_analysis_repository.py
         sqs_publisher.py
     config/
@@ -64,6 +66,7 @@ src/
 ```
 
 Também aceita payload legado com `uploadId`, `bucket` e `key`.
+Extensoes suportadas no S3: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `pdf`.
 
 ### Saídas
 1. Item no DynamoDB (`analises-arquitetura`).
@@ -80,7 +83,7 @@ Também aceita payload legado com `uploadId`, `bucket` e `key`.
   "analysis": {
     "text": "...",
     "confidence": 0.82,
-    "strategyUsed": "multimodal_fake",
+    "strategyUsed": "multimodal_openai",
     "fallbackReason": "",
     "createdAt": "..."
   }
@@ -95,8 +98,8 @@ Também aceita payload legado com `uploadId`, `bucket` e `key`.
 - `ANALYSIS_TABLE_NAME`
 - `RAW_BUCKET_NAME`
 - `REPORTS_BUCKET_NAME` (opcional)
-- `BEDROCK_MODEL_ID` (`anthropic.claude-3-haiku-20240307-v1:0`)
-- `BEDROCK_USE_FAKE` (`false`)
+- `OPENAI_MODEL` (`gpt-4.1-mini`)
+- `OPENAI_API_KEY` (obrigatória)
 - `MAX_OUTPUT_TOKENS` (`700`)
 - `MAX_INPUT_BYTES` (`5242880`)
 - `MAX_PDF_PAGES` (`8`)
@@ -106,6 +109,7 @@ Também aceita payload legado com `uploadId`, `bucket` e `key`.
 ## 🧪 Execução local
 ### 1) Subir ambiente
 ```bash
+export OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 docker compose up -d --build
 ```
 
@@ -145,12 +149,18 @@ O CI substitui placeholders e aplica no cluster:
 - `REPLACE_ANALYSIS_TABLE_NAME`
 - `REPLACE_RAW_BUCKET_NAME`
 - `REPLACE_REPORTS_BUCKET_NAME`
+- `REPLACE_OPENAI_MODEL`
+
+O `OPENAI_API_KEY` nao e substituido no manifesto. O deploy cria/atualiza o Secret Kubernetes
+`heimdail-openai` e o pod le a chave via `secretKeyRef`.
 
 Defaults de deploy (quando secrets nao informados):
 - Cluster EKS: `tc-fase5-hackaton-eks`
 - ECR: `339713015255.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket relatorios: `techchallenge-fase5-reports`
+- `OPENAI_MODEL`: `gpt-4.1-mini`
+- `OPENAI_API_KEY`: obrigatorio via secret `OPENAI_API_KEY`
 
 ### Deploy manual (padrao fase 4)
 ```bash
@@ -162,6 +172,8 @@ SQS_OUT=https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado
 TABLE=analises-arquitetura
 RAW_BUCKET=techchallenge-fase5-raw
 REPORTS_BUCKET=techchallenge-fase5-reports
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 
 cp k8s/deployment.yaml /tmp/heimdall-deployment.yaml
 sed -i "s|REPLACE_ECR_IMAGE_URI|$IMAGE_URI|g" /tmp/heimdall-deployment.yaml
@@ -170,7 +182,12 @@ sed -i "s|REPLACE_REPORT_REQUEST_QUEUE_URL|$SQS_OUT|g" /tmp/heimdall-deployment.
 sed -i "s|REPLACE_ANALYSIS_TABLE_NAME|$TABLE|g" /tmp/heimdall-deployment.yaml
 sed -i "s|REPLACE_RAW_BUCKET_NAME|$RAW_BUCKET|g" /tmp/heimdall-deployment.yaml
 sed -i "s|REPLACE_REPORTS_BUCKET_NAME|$REPORTS_BUCKET|g" /tmp/heimdall-deployment.yaml
+sed -i "s|REPLACE_OPENAI_MODEL|$OPENAI_MODEL|g" /tmp/heimdall-deployment.yaml
 
+kubectl create secret generic heimdail-openai \
+  --from-literal=api-key="$OPENAI_API_KEY" \
+  -n default \
+  --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n default -f /tmp/heimdall-deployment.yaml
 kubectl rollout status deployment/hackaton-heimdail -n default --timeout=180s
 ```
@@ -196,6 +213,7 @@ Workflow: `.github/workflows/ci.yml`
 - `ANALYSIS_TABLE_NAME`
 - `RAW_BUCKET_NAME` (opcional)
 - `REPORTS_BUCKET_NAME` (opcional)
+- `OPENAI_API_KEY`
 - `GH_PR_TOKEN` (opcional)
 - `SONAR_TOKEN` (opcional)
 - `SONAR_ORGANIZATION` (opcional)
