@@ -6,10 +6,10 @@ awslocal s3 mb s3://techchallenge-fase5-raw || true
 awslocal s3 mb s3://techchallenge-fase5-reports || true
 
 echo "[init] creating queue"
-awslocal sqs create-queue --queue-name analise-solicitada >/dev/null
-awslocal sqs create-queue --queue-name relatorio-solicitado >/dev/null
+awslocal sqs create-queue --queue-name requested-analysis >/dev/null
+awslocal sqs create-queue --queue-name requested-report >/dev/null
 
-QUEUE_URL=$(awslocal sqs get-queue-url --queue-name analise-solicitada --query QueueUrl --output text)
+QUEUE_URL=$(awslocal sqs get-queue-url --queue-name requested-analysis --query QueueUrl --output text)
 
 echo "[init] creating analysis table"
 awslocal dynamodb create-table \

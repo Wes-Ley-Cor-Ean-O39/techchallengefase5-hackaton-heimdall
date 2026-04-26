@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "heimdail.fullname" . }}
+  labels:
+    app: {{ include "heimdail.fullname" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "heimdail.fullname" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "heimdail.fullname" . }}
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: AWS_REGION
+              value: {{ .Values.env.AWS_REGION | quote }}
+            - name: SQS_QUEUE_URL
+              value: {{ .Values.env.SQS_QUEUE_URL | quote }}
+            - name: REPORT_REQUEST_QUEUE_URL
+              value: {{ .Values.env.REPORT_REQUEST_QUEUE_URL | quote }}
+            - name: ANALYSIS_TABLE_NAME
+              value: {{ .Values.env.ANALYSIS_TABLE_NAME | quote }}
+            - name: RAW_BUCKET_NAME
+              value: {{ .Values.env.RAW_BUCKET_NAME | quote }}
+            - name: REPORTS_BUCKET_NAME
+              value: {{ .Values.env.REPORTS_BUCKET_NAME | quote }}
+            - name: OPENAI_MODEL
+              value: {{ .Values.openai.model | quote }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.openai.secretName | quote }}
+                  key: {{ .Values.openai.secretKey | quote }}
+            - name: MAX_OUTPUT_TOKENS
+              value: {{ .Values.env.MAX_OUTPUT_TOKENS | quote }}
+            - name: MAX_INPUT_BYTES
+              value: {{ .Values.env.MAX_INPUT_BYTES | quote }}
+            - name: MAX_PDF_PAGES
+              value: {{ .Values.env.MAX_PDF_PAGES | quote }}
+            - name: POLL_WAIT_SECONDS
+              value: {{ .Values.env.POLL_WAIT_SECONDS | quote }}
+            - name: MAX_MESSAGES
+              value: {{ .Values.env.MAX_MESSAGES | quote }}

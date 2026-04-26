@@ -45,6 +45,12 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-fail-under=80
 
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Helm lint
+        run: helm lint chart/heimdail
+
       - name: 🔎 SonarCloud Scan
         if: ${{ env.SONAR_TOKEN != '' && env.SONAR_ORGANIZATION != '' }}
         uses: SonarSource/sonarqube-scan-action@v5
@@ -67,17 +73,12 @@ jobs:
       AWS_REGION: us-east-1
       EKS_CLUSTER: tc-fase5-hackaton-eks
       EKS_NAMESPACE: default
-      ECR_REPOSITORY: techchallenge-fase5-uploads
-      REGISTRY: 339713015255.dkr.ecr.us-east-1.amazonaws.com
+      HELM_RELEASE: hackaton-heimdail
+      HELM_CHART: chart/heimdail
+      HELM_VALUES: chart/heimdail/values.yaml
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-      SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada
-      REPORT_REQUEST_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado
-      ANALYSIS_TABLE_NAME: analises-arquitetura
-      RAW_BUCKET_NAME: techchallenge-fase5-raw
-      REPORTS_BUCKET_NAME: techchallenge-fase5-reports
-      OPENAI_MODEL: gpt-4.1-mini
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
@@ -95,11 +96,15 @@ jobs:
 
       - name: Build and push image
         run: |
-          docker build -t "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" .
-          docker push "$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          image_repository=$(awk -F': ' '/repository:/ {print $2; exit}' "$HELM_VALUES" | tr -d '"')
+          docker build -t "$image_repository:${{ github.sha }}" .
+          docker push "$image_repository:${{ github.sha }}"
 
       - name: Configure kubeconfig
         run: aws eks update-kubeconfig --name "$EKS_CLUSTER" --region "$AWS_REGION"
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
 
       - name: Deploy worker
         run: |
@@ -107,20 +112,15 @@ jobs:
             echo "OPENAI_API_KEY não configurada nos secrets do repositório."
             exit 1
           fi
-          cp k8s/deployment.yaml /tmp/deployment.yaml
-          sed -i "s|REPLACE_ECR_IMAGE_URI|$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_SQS_URL|$SQS_QUEUE_URL|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_REPORT_REQUEST_QUEUE_URL|$REPORT_REQUEST_QUEUE_URL|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_ANALYSIS_TABLE_NAME|$ANALYSIS_TABLE_NAME|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_RAW_BUCKET_NAME|$RAW_BUCKET_NAME|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_REPORTS_BUCKET_NAME|$REPORTS_BUCKET_NAME|g" /tmp/deployment.yaml
-          sed -i "s|REPLACE_OPENAI_MODEL|$OPENAI_MODEL|g" /tmp/deployment.yaml
           kubectl create namespace "$EKS_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic heimdail-openai \
             --from-literal=api-key="$OPENAI_API_KEY" \
             -n "$EKS_NAMESPACE" \
             --dry-run=client -o yaml | kubectl apply -f -
-          kubectl apply -n "$EKS_NAMESPACE" -f /tmp/deployment.yaml
+          helm upgrade --install "$HELM_RELEASE" "$HELM_CHART" \
+            -n "$EKS_NAMESPACE" \
+            -f "$HELM_VALUES" \
+            --set image.tag=${{ github.sha }}
           kubectl rollout status deployment/hackaton-heimdail -n "$EKS_NAMESPACE" --timeout=180s
 
   open-pr:

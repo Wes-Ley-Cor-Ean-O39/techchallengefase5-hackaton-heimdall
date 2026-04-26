@@ -7,15 +7,15 @@
 - Infra local: LocalStack (`s3`, `sqs`, `dynamodb`)
 
 ## Objetivo funcional
-- Consumir mensagens da fila `analise-solicitada`.
+- Consumir mensagens da fila `requested-analysis`.
 - Ler arquivo do bucket bruto.
 - Analisar diagrama via OpenAI API.
 - Persistir resultado no DynamoDB.
-- Publicar evento `ANALYSIS_COMPLETED` em `relatorio-solicitado`.
+- Publicar evento `ANALYSIS_COMPLETED` em `requested-report`.
 
 ## Contratos e dados
-- Fila entrada: `analise-solicitada`
-- Fila saída: `relatorio-solicitado`
+- Fila entrada: `requested-analysis`
+- Fila saída: `requested-report`
 - Tabela: `analises-arquitetura` (PK: `uploadId`)
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket de relatórios: `techchallenge-fase5-reports`
@@ -41,13 +41,13 @@ docker compose logs -f heimdail
 docker exec tc5-heimdail-localstack awslocal dynamodb get-item --table-name analises-arquitetura --key '{"uploadId":{"S":"demo-arq-001-diagrama-arquitetura"}}'
 
 # validar evento de saída
-docker exec tc5-heimdail-localstack awslocal sqs receive-message --queue-url http://localhost:4566/000000000000/relatorio-solicitado --max-number-of-messages 1
+docker exec tc5-heimdail-localstack awslocal sqs receive-message --queue-url http://localhost:4566/000000000000/requested-report --max-number-of-messages 1
 ```
 
 ## CI/CD
 - Workflow: `.github/workflows/ci.yml`
 - Jobs: build, deploy (main), open-pr
-- Deploy: build/push ECR + apply em EKS via `k8s/deployment.yaml`
+- Deploy: build/push ECR + `helm upgrade --install` via `chart/heimdail/values.yaml`
 - Gates de qualidade: testes unitários com cobertura mínima de `80%` + SonarCloud (condicional por token).
 
 ## Repositórios relacionados

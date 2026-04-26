@@ -28,7 +28,7 @@ Envie evento para fila de entrada:
 ```bash
 aws sqs send-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada \
+  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis \
   --message-body '{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-east-1","eventTime":"2026-04-05T00:00:00.000Z","eventName":"ObjectCreated:Put","s3":{"bucket":{"name":"techchallenge-fase5-raw"},"object":{"key":"uploads/demo-arq-001-diagrama-arquitetura.png"}}}]}'
 ```
 
@@ -49,12 +49,12 @@ Verifique fila de saida:
 ```bash
 aws sqs receive-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado \
+  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-report \
   --max-number-of-messages 1
 ```
 
 ## 5) Erros comuns
-- `QueueDoesNotExist`: criar filas `analise-solicitada` e `relatorio-solicitado`.
+- `QueueDoesNotExist`: criar filas `requested-analysis` e `requested-report`.
 - `AccessDenied`: revisar IAM role associada aos nodes/pod para SQS/S3/DynamoDB.
 - `NoSuchBucket`: criar bucket `techchallenge-fase5-raw`.
 - `ResourceNotFoundException` (DynamoDB): criar tabela `analises-arquitetura`.

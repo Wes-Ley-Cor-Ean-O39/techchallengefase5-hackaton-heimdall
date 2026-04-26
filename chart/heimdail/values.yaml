@@ -1,0 +1,27 @@
+replicaCount: 1
+
+image:
+  repository: 030951761036.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads
+  tag: latest
+  pullPolicy: Always
+
+nameOverride: ""
+fullnameOverride: hackaton-heimdail
+
+openai:
+  secretName: heimdail-openai
+  secretKey: api-key
+  model: gpt-4.1-mini
+
+env:
+  AWS_REGION: us-east-1
+  SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis
+  REPORT_REQUEST_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/030951761036/requested-report
+  ANALYSIS_TABLE_NAME: analises-arquitetura
+  RAW_BUCKET_NAME: techchallenge-fase5-raw
+  REPORTS_BUCKET_NAME: techchallenge-fase5-reports
+  MAX_OUTPUT_TOKENS: "700"
+  MAX_INPUT_BYTES: "5242880"
+  MAX_PDF_PAGES: "8"
+  POLL_WAIT_SECONDS: "20"
+  MAX_MESSAGES: "5"

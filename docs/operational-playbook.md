@@ -4,11 +4,11 @@
 Worker assincrono para analise de diagramas com consumo de SQS, leitura S3 e persistencia em DynamoDB.
 
 ## Fluxo esperado
-1. consumir evento de `analise-solicitada`
+1. consumir evento de `requested-analysis`
 2. buscar arquivo no bucket bruto
 3. executar analise (OpenAI API)
 4. persistir resultado
-5. publicar `ANALYSIS_COMPLETED` em `relatorio-solicitado`
+5. publicar `ANALYSIS_COMPLETED` em `requested-report`
 
 ## Comandos base
 ```bash

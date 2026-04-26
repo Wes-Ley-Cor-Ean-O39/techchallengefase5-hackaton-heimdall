@@ -9,7 +9,7 @@ Worker assíncrono responsável pela análise de diagramas de arquitetura.
 Consome eventos, lê o documento no S3, executa análise com IA, persiste resultado e publica evento para o serviço gerador de relatório.
 
 ## 🎯 Objetivo do repositório
-- Consumir eventos da fila de entrada (`analise-solicitada`).
+- Consumir eventos da fila de entrada (`requested-analysis`).
 - Ler imagem/PDF no bucket bruto.
 - Analisar com OpenAI API.
 - Persistir análise no DynamoDB.
@@ -46,6 +46,10 @@ src/
       settings.py
       container.py
     main.py
+chart/
+  heimdail/
+    values.yaml
+    templates/deployment.yaml
 ```
 
 ## 📨 Contratos
@@ -70,7 +74,7 @@ Extensoes suportadas no S3: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `pdf`.
 
 ### Saídas
 1. Item no DynamoDB (`analises-arquitetura`).
-2. Mensagem na fila `relatorio-solicitado`:
+2. Mensagem na fila `requested-report`:
 ```json
 {
   "eventType": "ANALYSIS_COMPLETED",
@@ -130,7 +134,7 @@ docker exec tc5-heimdail-localstack awslocal dynamodb get-item \
 ### 4) Validar evento na fila de saída
 ```bash
 docker exec tc5-heimdail-localstack awslocal sqs receive-message \
-  --queue-url http://localhost:4566/000000000000/relatorio-solicitado \
+  --queue-url http://localhost:4566/000000000000/requested-report \
   --max-number-of-messages 1
 ```
 
@@ -140,23 +144,22 @@ docker compose down -v
 ```
 
 ## 🚀 Deploy (EKS)
-Manifesto base: `k8s/deployment.yaml`
+Chart base: `chart/heimdail`.
 
-O CI substitui placeholders e aplica no cluster:
-- `REPLACE_ECR_IMAGE_URI`
-- `REPLACE_SQS_URL`
-- `REPLACE_REPORT_REQUEST_QUEUE_URL`
-- `REPLACE_ANALYSIS_TABLE_NAME`
-- `REPLACE_RAW_BUCKET_NAME`
-- `REPLACE_REPORTS_BUCKET_NAME`
-- `REPLACE_OPENAI_MODEL`
+As configuracoes nao secretas de ambiente ficam em `chart/heimdail/values.yaml`:
+- repositorio ECR
+- URLs das filas SQS
+- buckets S3
+- tabela DynamoDB
+- modelo OpenAI
+- limites de inferencia
 
 O `OPENAI_API_KEY` nao e substituido no manifesto. O deploy cria/atualiza o Secret Kubernetes
 `heimdail-openai` e o pod le a chave via `secretKeyRef`.
 
 Defaults de deploy (quando secrets nao informados):
 - Cluster EKS: `tc-fase5-hackaton-eks`
-- ECR: `339713015255.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
+- ECR: `030951761036.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket relatorios: `techchallenge-fase5-reports`
 - `OPENAI_MODEL`: `gpt-4.1-mini`
@@ -166,29 +169,19 @@ Defaults de deploy (quando secrets nao informados):
 ```bash
 aws eks update-kubeconfig --name tc-fase5-hackaton-eks --region us-east-1
 
-IMAGE_URI=339713015255.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads:<TAG>
-SQS_IN=https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada
-SQS_OUT=https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado
-TABLE=analises-arquitetura
-RAW_BUCKET=techchallenge-fase5-raw
-REPORTS_BUCKET=techchallenge-fase5-reports
-OPENAI_MODEL=gpt-4.1-mini
+IMAGE_TAG=<TAG>
 OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
-
-cp k8s/deployment.yaml /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_ECR_IMAGE_URI|$IMAGE_URI|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_SQS_URL|$SQS_IN|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_REPORT_REQUEST_QUEUE_URL|$SQS_OUT|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_ANALYSIS_TABLE_NAME|$TABLE|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_RAW_BUCKET_NAME|$RAW_BUCKET|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_REPORTS_BUCKET_NAME|$REPORTS_BUCKET|g" /tmp/heimdall-deployment.yaml
-sed -i "s|REPLACE_OPENAI_MODEL|$OPENAI_MODEL|g" /tmp/heimdall-deployment.yaml
 
 kubectl create secret generic heimdail-openai \
   --from-literal=api-key="$OPENAI_API_KEY" \
   -n default \
   --dry-run=client -o yaml | kubectl apply -f -
-kubectl apply -n default -f /tmp/heimdall-deployment.yaml
+
+helm upgrade --install hackaton-heimdail chart/heimdail \
+  -n default \
+  -f chart/heimdail/values.yaml \
+  --set image.tag="$IMAGE_TAG"
+
 kubectl rollout status deployment/hackaton-heimdail -n default --timeout=180s
 ```
 
@@ -196,7 +189,7 @@ kubectl rollout status deployment/hackaton-heimdail -n default --timeout=180s
 Workflow: `.github/workflows/ci.yml`
 
 - `build`: valida Python, executa testes unitários com cobertura mínima de `80%` e builda Docker.
-- `deploy`: push da imagem no ECR + deploy no EKS (somente `main`).
+- `deploy`: push da imagem no ECR + deploy via Helm no EKS (somente `main`).
 - `open-pr`: abre PR automático para `main` em branches de feature.
 - `sonar`: análise SonarCloud condicional (quando `SONAR_TOKEN` e `SONAR_ORGANIZATION` estão configurados).
 
@@ -204,15 +197,6 @@ Workflow: `.github/workflows/ci.yml`
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_SESSION_TOKEN`
-- `ECR_REGISTRY`
-- `IMAGE_NAME`
-- `EKS_CLUSTER`
-- `EKS_NAMESPACE`
-- `SQS_QUEUE_URL`
-- `REPORT_REQUEST_QUEUE_URL`
-- `ANALYSIS_TABLE_NAME`
-- `RAW_BUCKET_NAME` (opcional)
-- `REPORTS_BUCKET_NAME` (opcional)
 - `OPENAI_API_KEY`
 - `GH_PR_TOKEN` (opcional)
 - `SONAR_TOKEN` (opcional)
@@ -233,8 +217,8 @@ Workflow: `.github/workflows/ci.yml`
 
 ### Validacao fim a fim no cluster
 Pre-reqs minimos:
-- fila de entrada `analise-solicitada`
-- fila de saida `relatorio-solicitado`
+- fila de entrada `requested-analysis`
+- fila de saida `requested-report`
 - tabela DynamoDB `analises-arquitetura`
 - bucket `techchallenge-fase5-raw`
 
@@ -242,7 +226,7 @@ Pre-reqs minimos:
 ```bash
 aws sqs send-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/analise-solicitada \
+  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis \
   --message-body '{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-east-1","eventTime":"2026-04-05T00:00:00.000Z","eventName":"ObjectCreated:Put","s3":{"bucket":{"name":"techchallenge-fase5-raw"},"object":{"key":"uploads/demo-arq-001-diagrama-arquitetura.png"}}}]}'
 ```
 
@@ -263,14 +247,14 @@ aws dynamodb get-item \
 ```bash
 aws sqs receive-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/339713015255/relatorio-solicitado \
+  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-report \
   --max-number-of-messages 1
 ```
 
 ## ✅ Checklist de pronto
 - [ ] imagem publicada no ECR `techchallenge-fase5-uploads`
 - [ ] deployment `hackaton-heimdail` em `Running`
-- [ ] filas SQS criadas (`analise-solicitada`, `relatorio-solicitado`)
+- [ ] filas SQS criadas (`requested-analysis`, `requested-report`)
 - [ ] tabela `analises-arquitetura` existente
 - [ ] bucket `techchallenge-fase5-raw` existente
 - [ ] logs sem erro de credencial/permissao AWS

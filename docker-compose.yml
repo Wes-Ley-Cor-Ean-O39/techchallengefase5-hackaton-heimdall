@@ -20,8 +20,8 @@ services:
       - AWS_ACCESS_KEY_ID=test
       - AWS_SECRET_ACCESS_KEY=test
       - AWS_ENDPOINT_URL=http://localstack:4566
-      - SQS_QUEUE_URL=http://localstack:4566/000000000000/analise-solicitada
-      - REPORT_REQUEST_QUEUE_URL=http://localstack:4566/000000000000/relatorio-solicitado
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/requested-analysis
+      - REPORT_REQUEST_QUEUE_URL=http://localstack:4566/000000000000/requested-report
       - ANALYSIS_TABLE_NAME=analises-arquitetura
       - RAW_BUCKET_NAME=techchallenge-fase5-raw
       - REPORTS_BUCKET_NAME=techchallenge-fase5-reports
