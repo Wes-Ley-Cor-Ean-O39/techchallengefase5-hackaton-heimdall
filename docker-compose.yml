@@ -26,7 +26,7 @@ services:
       - RAW_BUCKET_NAME=techchallenge-fase5-raw
       - REPORTS_BUCKET_NAME=techchallenge-fase5-reports
       - OPENAI_API_KEY=${OPENAI_API_KEY:?configure OPENAI_API_KEY para executar o Heimdail local}
-      - OPENAI_MODEL=gpt-4.1-mini
+      - OPENAI_MODEL=gpt-5.5
       - MAX_OUTPUT_TOKENS=500
       - MAX_INPUT_BYTES=5242880
       - MAX_PDF_PAGES=8

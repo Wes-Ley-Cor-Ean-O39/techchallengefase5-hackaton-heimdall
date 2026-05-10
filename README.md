@@ -102,7 +102,7 @@ Extensoes suportadas no S3: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `pdf`.
 - `ANALYSIS_TABLE_NAME`
 - `RAW_BUCKET_NAME`
 - `REPORTS_BUCKET_NAME` (opcional)
-- `OPENAI_MODEL` (`gpt-4.1-mini`)
+- `OPENAI_MODEL` (`gpt-5.5`)
 - `OPENAI_API_KEY` (obrigatória)
 - `MAX_OUTPUT_TOKENS` (`700`)
 - `MAX_INPUT_BYTES` (`5242880`)
@@ -163,7 +163,7 @@ Defaults de deploy (quando secrets nao informados):
 - ECR: `030951761036.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket relatorios: `techchallenge-fase5-reports`
-- `OPENAI_MODEL`: `gpt-4.1-mini`
+- `OPENAI_MODEL`: `gpt-5.5`
 - `OPENAI_API_KEY`: obrigatorio via secret `OPENAI_API_KEY`
 
 ### Deploy manual (padrao fase 4)

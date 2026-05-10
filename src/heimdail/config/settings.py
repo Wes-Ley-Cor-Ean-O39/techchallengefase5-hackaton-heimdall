@@ -27,7 +27,7 @@ class Settings:
             report_request_queue_url=os.getenv("REPORT_REQUEST_QUEUE_URL", ""),
             analysis_table_name=os.getenv("ANALYSIS_TABLE_NAME", ""),
             raw_bucket_name=os.getenv("RAW_BUCKET_NAME", ""),
-            openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-5.5"),
             openai_api_key=os.getenv("OPENAI_API_KEY", ""),
             max_output_tokens=int(os.getenv("MAX_OUTPUT_TOKENS", "700")),
             max_input_bytes=int(os.getenv("MAX_INPUT_BYTES", "5242880")),

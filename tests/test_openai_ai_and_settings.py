@@ -33,15 +33,15 @@ def _sample_pdf_bytes(num_pages=1):
 
 def test_openai_adapter_success_image():
     client = OpenAiClient()
-    adapter = OpenAiAdapter(client, "gpt-4.1-mini", 100, 1024 * 1024, 5)
+    adapter = OpenAiAdapter(client, "gpt-5.5", 100, 1024 * 1024, 5)
     out = adapter.analyze_image(b"img", "image/png")
     assert out["analysis"] == "analise"
-    assert client.responses.last_kwargs["model"] == "gpt-4.1-mini"
+    assert client.responses.last_kwargs["model"] == "gpt-5.5"
 
 
 def test_openai_adapter_success_pdf_uses_input_file():
     client = OpenAiClient()
-    adapter = OpenAiAdapter(client, "gpt-4.1-mini", 100, 10_000_000, 5)
+    adapter = OpenAiAdapter(client, "gpt-5.5", 100, 10_000_000, 5)
     out = adapter.analyze_image(_sample_pdf_bytes(), "application/pdf")
     content = client.responses.last_kwargs["input"][0]["content"]
     pdf_input = next(item for item in content if item["type"] == "input_file")
