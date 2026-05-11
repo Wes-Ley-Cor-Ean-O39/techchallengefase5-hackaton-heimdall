@@ -154,9 +154,8 @@ As configuracoes nao secretas de ambiente ficam em `chart/heimdail/values.yaml`:
 - modelo OpenAI
 - limites de inferencia
 
-Secrets sensiveis nao ficam no values. O deploy cria/atualiza:
-- `heimdail-openai`: `OPENAI_API_KEY`
-- `heimdail-aws`: credenciais temporarias AWS Academy usadas pelo boto3 no pod
+Secrets sensiveis nao ficam no values. O deploy cria/atualiza `heimdail-openai` para `OPENAI_API_KEY`.
+As credenciais AWS em runtime devem vir da role do node/EKS (`LabRole`). Nao injete `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` ou `AWS_SESSION_TOKEN` no pod, pois as credenciais `voclabs` podem ter deny explicito para SQS.
 
 Defaults de deploy (quando secrets nao informados):
 - Cluster EKS: `tc-fase5-hackaton-eks`
@@ -175,13 +174,6 @@ OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 
 kubectl create secret generic heimdail-openai \
   --from-literal=api-key="$OPENAI_API_KEY" \
-  -n default \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl create secret generic heimdail-aws \
-  --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
-  --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
-  --from-literal=session-token="$AWS_SESSION_TOKEN" \
   -n default \
   --dry-run=client -o yaml | kubectl apply -f -
 
@@ -211,16 +203,12 @@ Workflow: `.github/workflows/ci.yml`
 - `SONAR_ORGANIZATION` (opcional)
 
 ### Credenciais AWS no pod
-Em conta AWS Academy, este worker usa o Secret Kubernetes `heimdail-aws` para expor credenciais temporarias ao boto3. Se aparecer `Unable to locate credentials` nos logs, atualize o Secret e reinicie o deployment:
+Em conta AWS Academy, este worker deve usar a role do node/EKS (`LabRole`) via boto3 credential chain. Se aparecer `AccessDenied` com `assumed-role/voclabs`, remova as envs AWS do pod e redeploye com `awsCredentials.enabled=false`:
 ```bash
-kubectl create secret generic heimdail-aws \
-  --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
-  --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
-  --from-literal=session-token="$AWS_SESSION_TOKEN" \
+helm upgrade --install hackaton-heimdail chart/heimdail \
   -n default \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl rollout restart deployment/hackaton-heimdail -n default
+  -f chart/heimdail/values.yaml \
+  --set awsCredentials.enabled=false
 ```
 
 ## 🔎 Operacao (EKS)

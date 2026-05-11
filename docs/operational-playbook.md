@@ -24,5 +24,5 @@ docker compose logs -f heimdail
 - Nao gerar relatorio final aqui; publicar evento para downstream.
 - Limites de inferencia devem permanecer explicitos e configuraveis.
 - Manter `OPENAI_API_KEY` em Secret Kubernetes (`heimdail-openai`) no EKS.
-- Manter credenciais temporarias AWS Academy em Secret Kubernetes (`heimdail-aws`) ate evoluir para IRSA/Pod Identity.
+- AWS runtime deve usar role do node/EKS (`LabRole`). Evitar credenciais `voclabs` em env vars do pod por causa de denies explicitos em SQS.
 - PDFs devem ser enviados para OpenAI como arquivo (`input_file`) para preservar texto e imagens das paginas.

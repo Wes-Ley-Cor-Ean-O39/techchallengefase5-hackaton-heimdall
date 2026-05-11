@@ -56,6 +56,7 @@ aws sqs receive-message \
 ## 5) Erros comuns
 - `QueueDoesNotExist`: criar filas `requested-analysis` e `requested-report`.
 - `AccessDenied`: revisar IAM role associada aos nodes/pod para SQS/S3/DynamoDB.
-- `Unable to locate credentials`: atualizar Secret `heimdail-aws` com `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_SESSION_TOKEN`, depois reiniciar o deployment.
+- `AccessDenied` com `assumed-role/voclabs`: remover envs AWS do pod e redeployar com `awsCredentials.enabled=false` para usar a role do node/EKS.
+- `Unable to locate credentials`: conferir se os nodes possuem role AWS (`LabRole`) e se o pod consegue acessar a cadeia padrão de credenciais do boto3.
 - `NoSuchBucket`: criar bucket `techchallenge-fase5-raw`.
 - `ResourceNotFoundException` (DynamoDB): criar tabela `analises-arquitetura`.
