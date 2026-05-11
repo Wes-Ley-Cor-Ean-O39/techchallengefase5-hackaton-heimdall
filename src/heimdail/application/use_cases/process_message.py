@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Any, Dict
 from urllib.parse import unquote_plus
@@ -12,6 +13,7 @@ from heimdail.application.ports import (
 from heimdail.domain.entities import AnalysisResult, ProcessingRequest
 
 
+LOGGER = logging.getLogger(__name__)
 UUID_PREFIX_REGEX = re.compile(r"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})-")
 
 
@@ -80,6 +82,12 @@ class ProcessMessageUseCase:
 
     def execute(self, message_body: Dict[str, Any]) -> str:
         request = self._parser.parse(message_body)
+        LOGGER.info(
+            "Analise solicitada. uploadId=%s bucket=%s key=%s",
+            request.upload_id,
+            request.bucket,
+            request.key,
+        )
 
         content, media_type = self._storage.read_document(bucket=request.bucket, key=request.key)
         analysis_payload = self._ai_analysis.analyze_image(content=content, media_type=media_type)
@@ -114,6 +122,10 @@ class ProcessMessageUseCase:
                     "createdAt": result.created_at,
                 },
             }
+        )
+        LOGGER.info(
+            "Evento de relatorio publicado. uploadId=%s eventType=ANALYSIS_COMPLETED",
+            result.upload_id,
         )
 
         return result.upload_id

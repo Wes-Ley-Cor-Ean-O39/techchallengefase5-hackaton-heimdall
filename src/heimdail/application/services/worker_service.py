@@ -24,7 +24,7 @@ class WorkerService:
 
     def run_forever(self) -> None:
         LOGGER.info(
-            "Processador iniciado. max_messages=%s poll_wait_seconds=%s",
+            "Heimdail iniciado. max_messages=%s poll_wait_seconds=%s",
             self._max_messages,
             self._poll_wait_seconds,
         )
@@ -50,7 +50,7 @@ class WorkerService:
         try:
             body = json.loads(message.get("Body", "{}"))
             upload_id = self._use_case.execute(body)
-            LOGGER.info("Mensagem processada com sucesso. upload_id=%s", upload_id)
+            LOGGER.info("Analise processada com sucesso. uploadId=%s", upload_id)
             if receipt_handle:
                 self._queue.delete_message(receipt_handle)
         except Exception as exc:  # pragma: no cover
