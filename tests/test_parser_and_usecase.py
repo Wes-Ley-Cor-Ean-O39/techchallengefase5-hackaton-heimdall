@@ -1,6 +1,6 @@
 import pytest
 
-from heimdail.application.use_cases.process_message import DefaultMessageParser, ProcessMessageUseCase
+from heimdail.application.use_cases.process_message import DefaultMessageParser, IgnoredMessage, ProcessMessageUseCase
 
 
 class Storage:
@@ -64,6 +64,12 @@ def test_parser_invalid_payloads():
 
     with pytest.raises(ValueError):
         parser.parse({"Records": []})
+
+
+def test_parser_ignores_s3_test_event():
+    parser = DefaultMessageParser(default_raw_bucket="raw-b")
+    with pytest.raises(IgnoredMessage, match="teste do S3"):
+        parser.parse({"Service": "Amazon S3", "Event": "s3:TestEvent", "Bucket": "raw-b"})
 
 
 def test_use_case_execute_persists_and_publishes():

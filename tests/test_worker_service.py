@@ -1,4 +1,5 @@
 from heimdail.application.services.worker_service import WorkerService
+from heimdail.application.use_cases.process_message import IgnoredMessage
 
 
 class Queue:
@@ -22,11 +23,23 @@ class UseCase:
         return "u1"
 
 
+class IgnoredUseCase:
+    def execute(self, body):
+        raise IgnoredMessage("teste")
+
+
 def test_process_message_safe_deletes_on_success():
     q = Queue()
     w = WorkerService(q, UseCase(), 1, 1)
     w._process_message_safe({"Body": '{"uploadId":"u1","key":"k"}', "ReceiptHandle": "rh-1"})
     assert q.deleted == ["rh-1"]
+
+
+def test_process_message_safe_deletes_ignored_message():
+    q = Queue()
+    w = WorkerService(q, IgnoredUseCase(), 1, 1)
+    w._process_message_safe({"Body": '{"Event":"s3:TestEvent"}', "ReceiptHandle": "rh-test"})
+    assert q.deleted == ["rh-test"]
 
 
 def test_run_forever_handles_receive_error(monkeypatch):

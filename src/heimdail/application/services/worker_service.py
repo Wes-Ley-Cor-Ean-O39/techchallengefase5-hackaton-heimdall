@@ -4,7 +4,7 @@ import time
 from typing import Any, Dict
 
 from heimdail.application.ports import QueuePort
-from heimdail.application.use_cases.process_message import ProcessMessageUseCase
+from heimdail.application.use_cases.process_message import IgnoredMessage, ProcessMessageUseCase
 
 LOGGER = logging.getLogger(__name__)
 
@@ -51,6 +51,10 @@ class WorkerService:
             body = json.loads(message.get("Body", "{}"))
             upload_id = self._use_case.execute(body)
             LOGGER.info("Analise processada com sucesso. uploadId=%s", upload_id)
+            if receipt_handle:
+                self._queue.delete_message(receipt_handle)
+        except IgnoredMessage as exc:
+            LOGGER.info("Mensagem ignorada e removida da fila. motivo=%s", exc)
             if receipt_handle:
                 self._queue.delete_message(receipt_handle)
         except Exception as exc:  # pragma: no cover

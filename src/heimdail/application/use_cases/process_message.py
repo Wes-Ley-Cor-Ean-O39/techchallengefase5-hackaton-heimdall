@@ -17,11 +17,18 @@ LOGGER = logging.getLogger(__name__)
 UUID_PREFIX_REGEX = re.compile(r"^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})-")
 
 
+class IgnoredMessage(Exception):
+    """Mensagem valida da infraestrutura que nao representa trabalho do dominio."""
+
+
 class DefaultMessageParser(MessageParserPort):
     def __init__(self, default_raw_bucket: str) -> None:
         self._default_raw_bucket = default_raw_bucket
 
     def parse(self, message_body: Dict[str, Any]) -> ProcessingRequest:
+        if message_body.get("Event") == "s3:TestEvent":
+            raise IgnoredMessage("Evento de teste do S3 ignorado")
+
         if isinstance(message_body.get("Records"), list):
             return self._parse_s3_event(message_body)
 
