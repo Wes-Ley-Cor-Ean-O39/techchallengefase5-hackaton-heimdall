@@ -21,6 +21,8 @@ spec:
           env:
             - name: AWS_REGION
               value: {{ .Values.env.AWS_REGION | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.env.AWS_REGION | quote }}
             {{- if .Values.awsCredentials.enabled }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:

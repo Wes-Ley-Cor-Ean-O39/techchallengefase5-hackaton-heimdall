@@ -14,7 +14,7 @@ openai:
   model: gpt-5.5
 
 awsCredentials:
-  enabled: false
+  enabled: true
   secretName: heimdail-aws
   accessKeyIdKey: access-key-id
   secretAccessKeyKey: secret-access-key

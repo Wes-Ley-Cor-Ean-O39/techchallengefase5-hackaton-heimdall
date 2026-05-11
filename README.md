@@ -154,12 +154,12 @@ As configuracoes nao secretas de ambiente ficam em `chart/heimdail/values.yaml`:
 - modelo OpenAI
 - limites de inferencia
 
-Secrets sensiveis nao ficam no values. O deploy cria/atualiza `heimdail-openai` para `OPENAI_API_KEY`.
-As credenciais AWS em runtime devem vir da role do node/EKS (`LabRole`). Nao injete `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` ou `AWS_SESSION_TOKEN` no pod, pois as credenciais `voclabs` podem ter deny explicito para SQS.
+Secrets sensiveis nao ficam no values. O deploy cria/atualiza `heimdail-openai` para `OPENAI_API_KEY` e `heimdail-aws` para as credenciais temporarias AWS, seguindo o mesmo padrao usado nos pods EKS da fase 4.
+Em AWS Academy, atualize `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_SESSION_TOKEN` nos GitHub Secrets sempre que o lab rotacionar as credenciais.
 
 Defaults de deploy (quando secrets nao informados):
 - Cluster EKS: `tc-fase5-hackaton-eks`
-- ECR: `030951761036.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
+- ECR: `590184113966.dkr.ecr.us-east-1.amazonaws.com/techchallenge-fase5-uploads`
 - Bucket bruto: `techchallenge-fase5-raw`
 - Bucket relatorios: `techchallenge-fase5-reports`
 - `OPENAI_MODEL`: `gpt-5.5`
@@ -174,6 +174,13 @@ OPENAI_API_KEY=<SUA_OPENAI_API_KEY>
 
 kubectl create secret generic heimdail-openai \
   --from-literal=api-key="$OPENAI_API_KEY" \
+  -n default \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic heimdail-aws \
+  --from-literal=access-key-id="$AWS_ACCESS_KEY_ID" \
+  --from-literal=secret-access-key="$AWS_SECRET_ACCESS_KEY" \
+  --from-literal=session-token="$AWS_SESSION_TOKEN" \
   -n default \
   --dry-run=client -o yaml | kubectl apply -f -
 
@@ -203,12 +210,13 @@ Workflow: `.github/workflows/ci.yml`
 - `SONAR_ORGANIZATION` (opcional)
 
 ### Credenciais AWS no pod
-Em conta AWS Academy, este worker deve usar a role do node/EKS (`LabRole`) via boto3 credential chain. Se aparecer `AccessDenied` com `assumed-role/voclabs`, remova as envs AWS do pod e redeploye com `awsCredentials.enabled=false`:
+Em conta AWS Academy, este worker recebe credenciais temporarias via Secret Kubernetes `heimdail-aws`, pois o pod nao encontrou credenciais pela cadeia padrao do boto3 no EKS. Se aparecer `Unable to locate credentials`, confira se `awsCredentials.enabled=true` e se o Secret existe.
+
+Se aparecer `AccessDenied` com `explicit deny`, a credencial usada no Secret foi cancelada/expirada ou nao tem permissao para SQS/S3/DynamoDB. Atualize os GitHub Secrets com as credenciais atuais do lab e rode a esteira novamente.
+
 ```bash
-helm upgrade --install hackaton-heimdail chart/heimdail \
-  -n default \
-  -f chart/heimdail/values.yaml \
-  --set awsCredentials.enabled=false
+kubectl describe pod -n default \
+  $(kubectl get pod -n default -l app=hackaton-heimdail -o jsonpath='{.items[0].metadata.name}') | grep -A12 AWS_ACCESS_KEY_ID
 ```
 
 ## 🔎 Operacao (EKS)
@@ -235,7 +243,7 @@ Pre-reqs minimos:
 ```bash
 aws sqs send-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis \
+  --queue-url https://sqs.us-east-1.amazonaws.com/590184113966/requested-analysis \
   --message-body '{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-east-1","eventTime":"2026-04-05T00:00:00.000Z","eventName":"ObjectCreated:Put","s3":{"bucket":{"name":"techchallenge-fase5-raw"},"object":{"key":"uploads/demo-arq-001-diagrama-arquitetura.png"}}}]}'
 ```
 
@@ -256,7 +264,7 @@ aws dynamodb get-item \
 ```bash
 aws sqs receive-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-report \
+  --queue-url https://sqs.us-east-1.amazonaws.com/590184113966/requested-report \
   --max-number-of-messages 1
 ```
 

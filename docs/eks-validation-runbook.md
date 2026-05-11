@@ -28,7 +28,7 @@ Envie evento para fila de entrada:
 ```bash
 aws sqs send-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-analysis \
+  --queue-url https://sqs.us-east-1.amazonaws.com/590184113966/requested-analysis \
   --message-body '{"Records":[{"eventVersion":"2.1","eventSource":"aws:s3","awsRegion":"us-east-1","eventTime":"2026-04-05T00:00:00.000Z","eventName":"ObjectCreated:Put","s3":{"bucket":{"name":"techchallenge-fase5-raw"},"object":{"key":"uploads/demo-arq-001-diagrama-arquitetura.png"}}}]}'
 ```
 
@@ -49,14 +49,14 @@ Verifique fila de saida:
 ```bash
 aws sqs receive-message \
   --region us-east-1 \
-  --queue-url https://sqs.us-east-1.amazonaws.com/030951761036/requested-report \
+  --queue-url https://sqs.us-east-1.amazonaws.com/590184113966/requested-report \
   --max-number-of-messages 1
 ```
 
 ## 5) Erros comuns
 - `QueueDoesNotExist`: criar filas `requested-analysis` e `requested-report`.
-- `AccessDenied`: revisar IAM role associada aos nodes/pod para SQS/S3/DynamoDB.
-- `AccessDenied` com `assumed-role/voclabs`: remover envs AWS do pod e redeployar com `awsCredentials.enabled=false` para usar a role do node/EKS.
-- `Unable to locate credentials`: conferir se os nodes possuem role AWS (`LabRole`) e se o pod consegue acessar a cadeia padrão de credenciais do boto3.
+- `AccessDenied`: revisar se as credenciais temporarias do Secret `heimdail-aws` ainda estao validas e possuem permissao para SQS/S3/DynamoDB.
+- `AccessDenied` com `explicit deny`: atualizar `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` e `AWS_SESSION_TOKEN` nos GitHub Secrets com as credenciais atuais do AWS Academy e rodar a esteira novamente.
+- `Unable to locate credentials`: conferir se `awsCredentials.enabled=true`, se o Secret `heimdail-aws` existe e se o pod foi recriado depois do deploy.
 - `NoSuchBucket`: criar bucket `techchallenge-fase5-raw`.
 - `ResourceNotFoundException` (DynamoDB): criar tabela `analises-arquitetura`.
