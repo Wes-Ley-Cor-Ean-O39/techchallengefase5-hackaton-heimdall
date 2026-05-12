@@ -127,6 +127,7 @@ jobs:
             -n "$EKS_NAMESPACE" \
             -f "$HELM_VALUES" \
             --set image.tag=${{ github.sha }}
+          kubectl rollout restart deployment/hackaton-heimdail -n "$EKS_NAMESPACE"
           kubectl rollout status deployment/hackaton-heimdail -n "$EKS_NAMESPACE" --timeout=180s
 
   open-pr:
