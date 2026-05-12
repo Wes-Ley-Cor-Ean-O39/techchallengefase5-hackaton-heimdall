@@ -27,7 +27,7 @@ env:
   ANALYSIS_TABLE_NAME: analises-arquitetura
   RAW_BUCKET_NAME: techchallenge-fase5-raw
   REPORTS_BUCKET_NAME: techchallenge-fase5-reports
-  MAX_OUTPUT_TOKENS: "700"
+  MAX_OUTPUT_TOKENS: "1800"
   MAX_INPUT_BYTES: "5242880"
   MAX_PDF_PAGES: "8"
   POLL_WAIT_SECONDS: "20"

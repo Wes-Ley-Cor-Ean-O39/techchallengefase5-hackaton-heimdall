@@ -28,7 +28,8 @@ class OpenAiAdapter:
             "1) componentes identificados,\n"
             "2) riscos arquiteturais,\n"
             "3) recomendacoes praticas.\n"
-            "Seja objetivo, estruturado e conciso."
+            "Seja objetivo, estruturado e conciso, mas entregue todas as secoes completas. "
+            "Finalize com uma conclusao curta e nunca termine no meio de uma frase."
         )
 
         input_content = [{"type": "input_text", "text": prompt}]

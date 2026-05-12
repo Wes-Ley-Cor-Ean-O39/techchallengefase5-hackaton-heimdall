@@ -104,7 +104,7 @@ Extensoes suportadas no S3: `png`, `jpg`, `jpeg`, `webp`, `bmp`, `gif`, `pdf`.
 - `REPORTS_BUCKET_NAME` (opcional)
 - `OPENAI_MODEL` (`gpt-5.5`)
 - `OPENAI_API_KEY` (obrigatória)
-- `MAX_OUTPUT_TOKENS` (`700`)
+- `MAX_OUTPUT_TOKENS` (`1800`)
 - `MAX_INPUT_BYTES` (`5242880`)
 - `MAX_PDF_PAGES` (`8`)
 - `POLL_WAIT_SECONDS` (`20`)
