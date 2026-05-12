@@ -68,7 +68,7 @@ jobs:
     name: 🚀 Deploy to EKS (main)
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     env:
       AWS_REGION: us-east-1
       EKS_CLUSTER: tc-fase5-hackaton-eks
